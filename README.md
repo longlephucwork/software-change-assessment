@@ -62,6 +62,10 @@ Some flags are raised automatically:
 - no evidence the need is real
 - maintenance growing faster than value
 
+## Claude Code skill
+
+`.claude/skills/assess-change/` teaches Claude Code to assess a ticket, PR, diff or design idea in the same way. It applies the same scales and design checks, and runs `scripts/score.py`, which uses the board's exact formula, so its scores match the board's. In Claude Code, ask for example "assess PR 42" or "is this feature worth doing?", or run `/assess-change`.
+
 ## Further reading
 
 `docs/code-simplicity-notes.md` summarizes the book's laws and rules.
