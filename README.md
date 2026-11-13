@@ -68,4 +68,4 @@ Some flags are raised automatically:
 
 ## Further reading
 
-`docs/code-simplicity-notes.md` summarizes the book's laws and rules.
+`.claude/skills/assess-change/references/code-simplicity.md` summarizes the book's laws and rules.
