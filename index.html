@@ -1,0 +1,588 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Desirability Board</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: workbench — ranked ledger of changes on the left, live assessment sheet on the right; stacks on phones. */
+:root {
+  --bg: #f4f5f8; --surface: #ffffff; --surface-2: #eef0f5; --line: #d8dce5;
+  --fg: #161a22; --muted: #5a6373; --accent: #2a57c0; --accent-soft: #e2e9fb; --on-accent: #ffffff;
+  --good: #1d7549; --good-soft: #e0f2e8; --warn: #9a5c07; --warn-soft: #fbefd9; --bad: #b12417; --bad-soft: #fbe4e1;
+  --font-ui: "Archivo", "Helvetica Neue", Arial, sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --radius: 8px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f1218; --surface: #161b23; --surface-2: #1e242e; --line: #2b323e;
+  --fg: #e6e9ef; --muted: #98a2b3; --accent: #86a8f4; --accent-soft: #1c2741; --on-accent: #0f1218;
+  --good: #5fc690; --good-soft: #142a1f; --warn: #e2a64c; --warn-soft: #2e2412; --bad: #f2897e; --bad-soft: #351a1a;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0f1218; --surface: #161b23; --surface-2: #1e242e; --line: #2b323e;
+  --fg: #e6e9ef; --muted: #98a2b3; --accent: #86a8f4; --accent-soft: #1c2741; --on-accent: #0f1218;
+  --good: #5fc690; --good-soft: #142a1f; --warn: #e2a64c; --warn-soft: #2e2412; --bad: #f2897e; --bad-soft: #351a1a;
+  color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font-ui); font-size: 14px; line-height: 1.45;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 20px 40px; }
+.wrap { max-width: 1240px; margin: 0 auto; display: flex; flex-direction: column; gap: 18px; }
+button, input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.mono { font-family: var(--font-data); font-variant-numeric: tabular-nums; }
+
+/* Header */
+header.top { display: flex; flex-wrap: wrap; gap: 14px 28px; align-items: flex-end; justify-content: space-between; border-bottom: 1px solid var(--line); padding-bottom: 16px; }
+.brand h1 { margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.01em; text-wrap: balance; }
+.brand .formula { margin-top: 4px; color: var(--muted); font-family: var(--font-data); font-size: 12.5px; }
+.settings { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-end; }
+.field-inline { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.purpose-row { display: flex; align-items: center; gap: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 0 10px; min-width: 0; }
+.purpose-row span { color: var(--muted); white-space: nowrap; }
+.purpose-row input { border: 0; background: transparent; padding: 8px 0; min-width: 0; width: 260px; max-width: 52vw; }
+.purpose-row input:focus { outline: none; }
+.purpose-row:focus-within { border-color: var(--accent); }
+select, input[type=text], textarea { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 8px 10px; }
+select:focus, input[type=text]:focus, textarea:focus { outline: none; border-color: var(--accent); }
+
+.banner { border-radius: var(--radius); padding: 10px 12px; background: var(--warn-soft); color: var(--warn); font-weight: 500; }
+
+/* Main grid */
+.grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.08fr); gap: 20px; align-items: start; }
+@media (max-width: 900px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* Ledger */
+.ledger { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); min-width: 0; }
+.ledger-head { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.tabs { display: flex; flex-wrap: wrap; gap: 4px; }
+.tab { border: 0; background: transparent; padding: 5px 9px; border-radius: 6px; color: var(--muted); cursor: pointer; font-weight: 500; }
+.tab[aria-pressed="true"] { background: var(--surface-2); color: var(--fg); }
+.tab .n { font-family: var(--font-data); font-size: 11.5px; margin-left: 4px; opacity: .75; }
+.btn { border: 1px solid var(--line); background: var(--surface); border-radius: var(--radius); padding: 8px 13px; cursor: pointer; font-weight: 600; }
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.btn.primary:hover { filter: brightness(1.07); }
+.btn.danger { color: var(--bad); }
+.btn.danger.armed { background: var(--bad); border-color: var(--bad); color: var(--surface); }
+.btn:disabled { opacity: .5; cursor: default; }
+
+.rows { list-style: none; margin: 0; padding: 0; }
+.row { display: grid; grid-template-columns: 62px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--line); cursor: pointer; position: relative; }
+.row:last-child { border-bottom: 0; }
+.row:hover { background: var(--surface-2); }
+.row[aria-current="true"] { background: var(--accent-soft); }
+.row[aria-current="true"]::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--accent); }
+.score { font-family: var(--font-data); font-size: 20px; font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+.row-main { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.row-title { font-weight: 600; overflow-wrap: anywhere; }
+.row-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; color: var(--muted); font-size: 12.5px; }
+.row-side { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.avatar { width: 20px; height: 20px; border-radius: 50%; background: var(--surface-2); }
+.pill { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+.pill.strong { background: var(--good-soft); color: var(--good); }
+.pill.worth { background: var(--accent-soft); color: var(--accent); }
+.pill.marginal { background: var(--warn-soft); color: var(--warn); }
+.pill.avoid { background: var(--bad-soft); color: var(--bad); }
+.chip { font-size: 11.5px; padding: 1px 7px; border: 1px solid var(--line); border-radius: 999px; white-space: nowrap; }
+.redcount { color: var(--bad); font-weight: 600; }
+
+.empty { padding: 28px 22px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.empty h2 { margin: 0; font-size: 17px; }
+.empty p { margin: 0; color: var(--muted); max-width: 52ch; }
+
+/* Sheet */
+.sheet { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); min-width: 0; display: flex; flex-direction: column; }
+.verdict { padding: 16px 18px; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 18px; align-items: center; background: var(--surface-2); border-radius: var(--radius) var(--radius) 0 0; }
+.dnum { font-family: var(--font-data); font-size: 40px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+.dlabel { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.vsum { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.terms { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; grid-column: 1 / -1; margin-top: 8px; }
+.term { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; min-width: 0; }
+.term b { display: block; font-family: var(--font-data); font-size: 15px; font-weight: 600; }
+.term span { font-size: 11px; color: var(--muted); }
+@media (max-width: 480px) { .terms { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.flags { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; grid-column: 1 / -1; }
+.flags li { font-size: 12.5px; padding-left: 14px; position: relative; }
+.flags li::before { content: ""; position: absolute; left: 0; top: .5em; width: 7px; height: 7px; border-radius: 50%; }
+.flags li.bad { color: var(--bad); } .flags li.bad::before { background: var(--bad); }
+.flags li.warn { color: var(--warn); } .flags li.warn::before { background: var(--warn); }
+.flags li.good { color: var(--good); } .flags li.good::before { background: var(--good); }
+
+form { padding: 16px 18px 18px; display: flex; flex-direction: column; gap: 18px; }
+fieldset { border: 0; margin: 0; padding: 0; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
+legend { font-size: 15px; font-weight: 700; padding: 0; margin-bottom: 2px; }
+.legend-note { font-weight: 400; color: var(--muted); font-size: 12.5px; margin-left: 6px; }
+.f { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.f > .q { font-weight: 600; font-size: 13px; }
+.f > .hint { color: var(--muted); font-size: 12px; margin-top: -2px; }
+.two { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 12px; }
+.two.even { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+@media (max-width: 640px) { .two, .two.even { grid-template-columns: minmax(0, 1fr); } }
+textarea { resize: vertical; min-height: 60px; }
+.seg { display: flex; flex-wrap: wrap; gap: 0; border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
+.seg label { flex: 1 1 0; min-width: 60px; position: relative; }
+.seg input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.seg span { display: block; text-align: center; padding: 7px 6px; font-size: 12.5px; border-right: 1px solid var(--line); height: 100%; color: var(--muted); }
+.seg label:last-child span { border-right: 0; }
+.seg input:checked + span { background: var(--accent); color: var(--on-accent); font-weight: 600; }
+.seg input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: -2px; }
+.seg input:disabled { cursor: default; }
+.checks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px 14px; }
+@media (max-width: 560px) { .checks { grid-template-columns: minmax(0, 1fr); } }
+.checks label { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; cursor: pointer; }
+.checks input { margin-top: 3px; accent-color: var(--accent); }
+.checks .tone-good { color: var(--good); }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: space-between; border-top: 1px solid var(--line); padding-top: 14px; }
+.actions .left, .actions .right { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.status-msg { color: var(--muted); font-size: 12.5px; }
+.status-msg.err { color: var(--bad); }
+
+details.method { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 16px; }
+details.method summary { cursor: pointer; font-weight: 600; }
+details.method .body { margin-top: 10px; color: var(--muted); display: flex; flex-direction: column; gap: 8px; max-width: 80ch; }
+details.method p { margin: 0; }
+details.method code { font-family: var(--font-data); font-size: 12.5px; color: var(--fg); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <h1>Desirability Board</h1>
+      <div class="formula">D = (V<sub>now</sub> + V<sub>future</sub>) / (E<sub>implement</sub> + E<sub>maintain</sub>)</div>
+    </div>
+    <div class="settings">
+      <div class="field-inline">
+        <label class="label" for="purpose">Purpose of the software</label>
+        <div class="purpose-row"><span>Helps people</span><input id="purpose" type="text" placeholder="e.g. track and fix bugs" maxlength="120"></div>
+      </div>
+      <div class="field-inline">
+        <label class="label" for="horizon">Expected lifetime</label>
+        <select id="horizon">
+          <option value="1">3 months</option>
+          <option value="2">6 months</option>
+          <option value="4">1 year</option>
+          <option value="8">2 years</option>
+          <option value="20">5 years</option>
+          <option value="40">10 years</option>
+        </select>
+      </div>
+    </div>
+  </header>
+
+  <div id="banner" class="banner" hidden></div>
+
+  <div class="grid">
+    <section class="ledger" aria-label="Assessed changes">
+      <div class="ledger-head">
+        <div class="tabs" id="tabs" role="group" aria-label="Filter by status"></div>
+        <button class="btn primary" id="newBtn" type="button">New assessment</button>
+      </div>
+      <ul class="rows" id="rows"></ul>
+      <div class="empty" id="empty">
+        <h2 id="emptyTitle">Loading changes…</h2>
+        <p id="emptyText">Assessments the team has saved will be listed here, ranked by desirability.</p>
+      </div>
+    </section>
+
+    <section class="sheet" id="sheet" aria-label="Assessment">
+      <div class="verdict" aria-live="polite">
+        <div>
+          <div class="dlabel">Desirability</div>
+          <div class="dnum" id="dnum">–</div>
+        </div>
+        <div class="vsum">
+          <div><span class="pill" id="vpill">–</span></div>
+          <div id="vline" class="status-msg">Fill in the sheet; the score updates as you go.</div>
+        </div>
+        <div class="terms">
+          <div class="term"><b id="tVn">–</b><span>Value now</span></div>
+          <div class="term"><b id="tVf">–</b><span>Future value</span></div>
+          <div class="term"><b id="tEi">–</b><span>Implementation</span></div>
+          <div class="term"><b id="tEm">–</b><span>Maintenance</span></div>
+        </div>
+        <ul class="flags" id="flags"></ul>
+      </div>
+
+      <form id="form" autocomplete="off">
+        <fieldset>
+          <legend>The change</legend>
+          <div class="two">
+            <div class="f"><label class="q" for="f-title">Title</label><input id="f-title" type="text" maxlength="140" placeholder="Keyboard shortcuts for common actions" required></div>
+            <div class="f"><label class="q" for="f-kind">Kind</label>
+              <select id="f-kind"><option>Feature</option><option>Bug fix</option><option>Refactor / simplify</option><option>Dependency / tech</option><option>Performance</option></select></div>
+          </div>
+          <div class="f"><label class="q" for="f-benefit">How does this help users fulfil the software's purpose?</label>
+            <div class="hint" id="benefitHint">Answer in one sentence. If the honest answer is "it doesn't", drop the change.</div>
+            <textarea id="f-benefit" rows="2" maxlength="600"></textarea></div>
+          <div class="f"><span class="q" id="q-evidence">What evidence shows the need is real?</span><div class="seg" data-field="evidence" aria-labelledby="q-evidence"></div></div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Value<span class="legend-note">probability × potential, minus harm</span></legend>
+          <div class="f"><span class="q" id="q-reach">How many users does it reach?</span><div class="seg" data-field="reach" aria-labelledby="q-reach"></div></div>
+          <div class="f"><span class="q" id="q-freq">How often does it help them?</span><div class="seg" data-field="freq" aria-labelledby="q-freq"></div></div>
+          <div class="f"><span class="q" id="q-impact">How much does it help when it does?</span><div class="hint">Accessibility or data-safety work can be critical even for few users.</div><div class="seg" data-field="impact" aria-labelledby="q-impact"></div></div>
+          <div class="f"><span class="q" id="q-harm">Harm to users (ads, slower flows, breaking habits)</span><div class="seg" data-field="harm" aria-labelledby="q-harm"></div></div>
+          <div class="two even">
+            <div class="f"><span class="q" id="q-vt">Value over time</span><div class="seg" data-field="valueTrend" aria-labelledby="q-vt"></div></div>
+            <div class="f"><span class="q" id="q-rel">Time to release</span><div class="seg" data-field="release" aria-labelledby="q-rel"></div></div>
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Effort<span class="legend-note">maintenance matters more than implementation</span></legend>
+          <div class="f"><span class="q" id="q-impl">Effort to implement (research, talk, code, review, test)</span><div class="seg" data-field="impl" aria-labelledby="q-impl"></div></div>
+          <div class="f"><span class="q" id="q-maint">Ongoing maintenance load</span><div class="seg" data-field="maint" aria-labelledby="q-maint"></div></div>
+          <div class="f"><span class="q" id="q-mt">Maintenance over time</span><div class="hint">Design so this shrinks toward zero.</div><div class="seg" data-field="maintTrend" aria-labelledby="q-mt"></div></div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Design checks</legend>
+          <div class="checks" id="checks"></div>
+        </fieldset>
+
+        <fieldset>
+          <legend>Decision</legend>
+          <div class="two">
+            <div class="f"><label class="q" for="f-notes">Notes</label><textarea id="f-notes" rows="2" maxlength="2000" placeholder="Trade-offs, links, what would change the call"></textarea></div>
+            <div class="f"><label class="q" for="f-status">Status</label>
+              <select id="f-status"><option>Proposed</option><option>Accepted</option><option>Deferred</option><option>Rejected</option><option>Shipped</option></select></div>
+          </div>
+        </fieldset>
+
+        <div class="actions">
+          <div class="left">
+            <button class="btn primary" id="saveBtn" type="submit">Save assessment</button>
+            <span class="status-msg" id="saveMsg"></span>
+          </div>
+          <div class="right">
+            <button class="btn danger" id="delBtn" type="button" hidden>Delete</button>
+          </div>
+        </div>
+      </form>
+    </section>
+  </div>
+
+  <details class="method">
+    <summary>How the score works</summary>
+    <div class="body">
+      <p>Based on the Equation of Software Design from <em>Code Simplicity</em>: a change is desirable in proportion to its value and in inverse proportion to its effort.</p>
+      <p><code>V = reach × frequency × impact ÷ 12.5</code>, reduced by harm (0–10 scale). Value now is V discounted for slow release; future value is V per quarter across the expected lifetime, bent by the value trend.</p>
+      <p>Implementation effort runs 1, 2, 4, 8, 16 from hours to months. Maintenance runs 0.25 to 4 per quarter across the lifetime, bent by its trend. The longer the lifetime, the more the score depends on future value against maintenance, as the book predicts.</p>
+      <p>Verdicts: 2 and above <b>Strong</b>, 1 to 2 <b>Worth doing</b>, 0.5 to 1 <b>Marginal</b>, below 0.5 <b>Avoid</b>. Use the score to rank changes against each other, not as an absolute truth.</p>
+    </div>
+  </details>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  const OPTS = {
+    evidence: ["Users reported it", "Reproduced it", "Measured it", "Assumed"],
+    reach: ["Under 5%", "About 10%", "About 25%", "About half", "Nearly all"],
+    freq: ["Rarely", "Occasionally", "Regularly", "Often", "Every session"],
+    impact: ["Cosmetic", "Convenience", "Saves real time", "Unblocks a task", "Critical"],
+    harm: ["None", "Slight", "Noticeable", "Significant", "Severe"],
+    valueTrend: ["Fades", "Steady", "Grows"],
+    release: ["Days", "Weeks", "A quarter", "Longer"],
+    impl: ["Hours", "Days", "A week", "Weeks", "Months"],
+    maint: ["Near zero", "Light", "Moderate", "Heavy", "Constant"],
+    maintTrend: ["Shrinks", "Steady", "Grows"]
+  };
+  const CHECKS = [
+    { id: "predicts", label: "Built for a predicted future need, not a known one", tone: "bad", msg: "Designs for a future nobody can predict" },
+    { id: "generic", label: "More generic than today's needs require", tone: "bad", msg: "Overengineered: be only as generic as you need now" },
+    { id: "purpose", label: "Expands or strays from the software's purpose", tone: "bad", msg: "Strays from the software's purpose" },
+    { id: "lockin", label: "Adds a dependency that's hard to switch away from", tone: "bad", msg: "Risk of lock-in to a technology" },
+    { id: "reinvent", label: "Reinvents something that already exists", tone: "bad", msg: "Reinvents the wheel" },
+    { id: "bigbang", label: "Can't be split into small steps", tone: "bad", msg: "Large change: defect risk grows with change size" },
+    { id: "simplifies", label: "Simplifies existing code", tone: "good", msg: "Simplifies existing code" },
+    { id: "removes", label: "Removes unused code", tone: "good", msg: "Removes unused code" },
+    { id: "tested", label: "Comes with automated tests", tone: "good", msg: "Covered by automated tests" }
+  ];
+  const STATUSES = ["Proposed", "Accepted", "Deferred", "Rejected", "Shipped"];
+  const DEFAULTS = { title: "", kind: "Feature", benefit: "", evidence: 0, reach: 2, freq: 2, impact: 2, harm: 0,
+    valueTrend: 1, release: 1, impl: 2, maint: 1, maintTrend: 1, checks: [], notes: "", status: "Proposed" };
+
+  const $ = (id) => document.getElementById(id);
+  const state = { changes: [], horizon: 8, purpose: "", filter: "All", selectedId: null, draft: { ...DEFAULTS },
+    db: null, user: null, myId: null, writable: true, local: false, loaded: false };
+
+  function clampIdx(v, n, d) { v = Number(v); return Number.isInteger(v) && v >= 0 && v < n ? v : d; }
+  function normalize(c) {
+    const o = { ...DEFAULTS };
+    for (const k of Object.keys(OPTS)) o[k] = clampIdx(c[k], OPTS[k].length, DEFAULTS[k]);
+    o.title = String(c.title || ""); o.kind = String(c.kind || "Feature"); o.benefit = String(c.benefit || "");
+    o.notes = String(c.notes || ""); o.status = STATUSES.includes(c.status) ? c.status : "Proposed";
+    o.checks = Array.isArray(c.checks) ? c.checks.filter((x) => CHECKS.some((k) => k.id === x)) : [];
+    return o;
+  }
+
+  // ---- The Equation of Software Design ----
+  function assess(c, T) {
+    const V = ((c.reach + 1) * (c.freq + 1) * (c.impact + 1)) / 12.5 * [1, 0.85, 0.65, 0.4, 0.15][c.harm];
+    const Vn = V * [1, 0.9, 0.75, 0.5][c.release];
+    const tv = [0.25, 1, 2][c.valueTrend];
+    const Vf = V * T * (1 + tv) / 2;
+    const Ei = [1, 2, 4, 8, 16][c.impl];
+    const m = [0.25, 0.5, 1, 2, 4][c.maint];
+    const te = [0.25, 1, 3][c.maintTrend];
+    const Em = m * T * (1 + te) / 2;
+    const D = (Vn + Vf) / (Ei + Em);
+    const flags = [];
+    if (!c.benefit.trim()) flags.push(["bad", "No stated benefit to users"]);
+    if (c.evidence === 3) flags.push(["bad", "No evidence the need is real; don't fix what isn't shown to be broken"]);
+    if (te > tv) flags.push(["bad", "Maintenance grows faster than value"]);
+    if (c.harm >= 3) flags.push(["warn", "Harm may cancel out much of the help"]);
+    if (c.release === 3) flags.push(["warn", "Slow to ship: unreleased work helps nobody"]);
+    for (const k of CHECKS) if (c.checks.includes(k.id)) flags.push([k.tone, k.msg]);
+    if (c.maintTrend === 0) flags.push(["good", "Maintenance shrinks over time"]);
+    flags.sort((a, b) => ["bad", "warn", "good"].indexOf(a[0]) - ["bad", "warn", "good"].indexOf(b[0]));
+    const verdict = D >= 2 ? ["strong", "Strong"] : D >= 1 ? ["worth", "Worth doing"] : D >= 0.5 ? ["marginal", "Marginal"] : ["avoid", "Avoid"];
+    return { V, Vn, Vf, Ei, Em, D, flags, verdict, red: flags.filter((f) => f[0] === "bad").length };
+  }
+  const fmt = (n) => n >= 100 ? n.toFixed(0) : n >= 10 ? n.toFixed(1) : n.toFixed(2);
+
+  // ---- Build form controls ----
+  document.querySelectorAll(".seg").forEach((seg) => {
+    const field = seg.dataset.field;
+    OPTS[field].forEach((txt, i) => {
+      const lab = document.createElement("label");
+      const inp = document.createElement("input");
+      inp.type = "radio"; inp.name = field; inp.value = String(i); inp.id = "r-" + field + "-" + i;
+      const sp = document.createElement("span"); sp.textContent = txt;
+      lab.append(inp, sp); seg.append(lab);
+    });
+  });
+  CHECKS.forEach((k) => {
+    const lab = document.createElement("label");
+    const inp = document.createElement("input"); inp.type = "checkbox"; inp.value = k.id; inp.id = "c-" + k.id;
+    const sp = document.createElement("span"); sp.textContent = k.label; if (k.tone === "good") sp.className = "tone-good";
+    lab.append(inp, sp); $("checks").append(lab);
+  });
+
+  function fillForm(c) {
+    $("f-title").value = c.title; $("f-kind").value = c.kind; $("f-benefit").value = c.benefit;
+    $("f-notes").value = c.notes; $("f-status").value = c.status;
+    for (const k of Object.keys(OPTS)) { const r = $("r-" + k + "-" + c[k]); if (r) r.checked = true; }
+    CHECKS.forEach((k) => { $("c-" + k.id).checked = c.checks.includes(k.id); });
+  }
+  function readForm() {
+    const c = { title: $("f-title").value.trim(), kind: $("f-kind").value, benefit: $("f-benefit").value.trim(),
+      notes: $("f-notes").value.trim(), status: $("f-status").value, checks: [] };
+    for (const k of Object.keys(OPTS)) { const r = document.querySelector('input[name="' + k + '"]:checked'); c[k] = r ? Number(r.value) : DEFAULTS[k]; }
+    CHECKS.forEach((k) => { if ($("c-" + k.id).checked) c.checks.push(k.id); });
+    return c;
+  }
+
+  function renderVerdict() {
+    const a = assess(state.draft, state.horizon);
+    $("dnum").textContent = fmt(a.D);
+    const p = $("vpill"); p.className = "pill " + a.verdict[0]; p.textContent = a.verdict[1];
+    $("vline").textContent = "Over " + $("horizon").selectedOptions[0].textContent + ": value " + fmt(a.Vn + a.Vf) + " vs effort " + fmt(a.Ei + a.Em) + ".";
+    $("tVn").textContent = fmt(a.Vn); $("tVf").textContent = fmt(a.Vf); $("tEi").textContent = fmt(a.Ei); $("tEm").textContent = fmt(a.Em);
+    const ul = $("flags"); ul.replaceChildren();
+    a.flags.forEach(([tone, msg]) => { const li = document.createElement("li"); li.className = tone; li.textContent = msg; ul.append(li); });
+  }
+
+  // ---- Ledger ----
+  function renderTabs() {
+    const tabs = $("tabs"); tabs.replaceChildren();
+    ["All", ...STATUSES].forEach((s) => {
+      const n = s === "All" ? state.changes.length : state.changes.filter((c) => c.data.status === s).length;
+      if (s !== "All" && n === 0 && state.filter !== s) return;
+      const b = document.createElement("button"); b.type = "button"; b.className = "tab";
+      b.setAttribute("aria-pressed", String(state.filter === s));
+      b.append(document.createTextNode(s)); const sp = document.createElement("span"); sp.className = "n"; sp.textContent = n; b.append(sp);
+      b.onclick = () => { state.filter = s; renderList(); };
+      tabs.append(b);
+    });
+  }
+  function renderList() {
+    renderTabs();
+    const ul = $("rows"); ul.replaceChildren();
+    const items = state.changes
+      .filter((c) => state.filter === "All" || c.data.status === state.filter)
+      .map((c) => ({ ...c, a: assess(c.data, state.horizon) }))
+      .sort((x, y) => y.a.D - x.a.D);
+    const empty = $("empty");
+    if (!state.loaded) { empty.hidden = false; return; }
+    if (!items.length) {
+      empty.hidden = false;
+      if (state.changes.length) { $("emptyTitle").textContent = "Nothing in " + state.filter; $("emptyText").textContent = "Pick another status, or assess a new change."; }
+      else { $("emptyTitle").textContent = "No changes assessed yet"; $("emptyText").textContent = "Fill in the sheet for a feature, bug fix or refactor you're weighing, then save it. Every saved change is ranked here by desirability so the team can compare them side by side."; }
+      return;
+    }
+    empty.hidden = true;
+    const ids = [];
+    items.forEach((c) => {
+      const li = document.createElement("li"); li.className = "row"; li.tabIndex = 0;
+      if (c.id === state.selectedId) li.setAttribute("aria-current", "true");
+      const sc = document.createElement("div"); sc.className = "score"; sc.textContent = fmt(c.a.D);
+      const main = document.createElement("div"); main.className = "row-main";
+      const t = document.createElement("div"); t.className = "row-title"; t.textContent = c.data.title || "Untitled change";
+      const meta = document.createElement("div"); meta.className = "row-meta";
+      const k = document.createElement("span"); k.className = "chip"; k.textContent = c.data.kind;
+      const st = document.createElement("span"); st.className = "chip"; st.textContent = c.data.status;
+      meta.append(k, st);
+      if (c.a.red) { const r = document.createElement("span"); r.className = "redcount"; r.textContent = c.a.red + (c.a.red === 1 ? " red flag" : " red flags"); meta.append(r); }
+      main.append(t, meta);
+      const side = document.createElement("div"); side.className = "row-side";
+      const pill = document.createElement("span"); pill.className = "pill " + c.a.verdict[0]; pill.textContent = c.a.verdict[1];
+      side.append(pill);
+      if (c.createdBy) { const img = document.createElement("img"); img.className = "avatar"; img.alt = ""; img.dataset.uid = c.createdBy; side.append(img); ids.push(c.createdBy); }
+      li.append(sc, main, side);
+      const open = () => select(c.id);
+      li.onclick = open; li.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } };
+      ul.append(li);
+    });
+    if (state.user && ids.length) {
+      state.user.profiles(ids).then((ps) => {
+        document.querySelectorAll("img.avatar[data-uid]").forEach((img) => {
+          const p = ps[img.dataset.uid]; if (!p) return;
+          img.src = p.avatarUrl; img.title = "Assessed by " + (p.name || "someone"); img.alt = p.name || "";
+        });
+      });
+    }
+  }
+
+  function select(id) {
+    const c = state.changes.find((x) => x.id === id);
+    if (!c) return;
+    state.selectedId = id; state.draft = { ...c.data };
+    fillForm(state.draft); renderVerdict(); renderList();
+    $("delBtn").hidden = !state.writable; disarmDelete(); setMsg("");
+    $("saveBtn").textContent = "Save changes";
+    if (window.matchMedia("(max-width: 900px)").matches) $("sheet").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  function startNew() {
+    state.selectedId = null; state.draft = { ...DEFAULTS, checks: [] };
+    fillForm(state.draft); renderVerdict(); renderList();
+    $("delBtn").hidden = true; setMsg(""); $("saveBtn").textContent = "Save assessment";
+    $("f-title").focus({ preventScroll: true });
+    if (window.matchMedia("(max-width: 900px)").matches) $("sheet").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+  function setMsg(t, err) { const m = $("saveMsg"); m.textContent = t; m.className = "status-msg" + (err ? " err" : ""); }
+  function banner(t) { const b = $("banner"); b.textContent = t || ""; b.hidden = !t; }
+  function setReadOnly() {
+    state.writable = false;
+    document.querySelectorAll("#form input, #form select, #form textarea, #purpose, #horizon").forEach((el) => { el.disabled = true; });
+    $("saveBtn").hidden = true; $("delBtn").hidden = true; $("newBtn").hidden = true;
+    banner("You can view these assessments, but your access doesn't allow changes. Ask the owner for Contributor access.");
+  }
+
+  $("form").addEventListener("input", () => { state.draft = readForm(); renderVerdict(); });
+  $("form").addEventListener("change", () => { state.draft = readForm(); renderVerdict(); });
+  $("newBtn").onclick = startNew;
+
+  // ---- Persistence ----
+  let saving = false;
+  $("form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (saving || !state.writable) return;
+    const c = readForm();
+    if (!c.title) { setMsg("Give the change a title first.", true); $("f-title").focus(); return; }
+    const a = assess(c, state.horizon);
+    const body = { ...c, desirability: Math.round(a.D * 100) / 100, verdict: a.verdict[1], updatedAt: new Date().toISOString(), updatedBy: state.myId };
+    saving = true; $("saveBtn").disabled = true; setMsg("Saving…");
+    try {
+      if (state.local) {
+        if (state.selectedId) { const x = state.changes.find((y) => y.id === state.selectedId); Object.assign(x, { data: normalize(body) }); }
+        else { const id = "local-" + Date.now(); state.changes.push({ id, data: normalize(body), createdBy: null }); state.selectedId = id; }
+        renderList();
+      } else if (state.selectedId) {
+        const prev = state.changes.find((y) => y.id === state.selectedId);
+        await state.db.collection("changes").doc(state.selectedId).set({ ...body, createdBy: prev ? prev.createdBy : state.myId, createdAt: prev ? prev.createdAt : body.updatedAt });
+      } else {
+        const ref = await state.db.collection("changes").add({ ...body, createdBy: state.myId, createdAt: body.updatedAt });
+        state.selectedId = ref.id;
+      }
+      setMsg("Saved"); $("saveBtn").textContent = "Save changes"; $("delBtn").hidden = false;
+    } catch (err) {
+      if (err && err.code === "invalid_argument" && !state.local) { setReadOnly(); setMsg(""); }
+      else if (err && err.code === "quota_exceeded") setMsg("The board is full. Delete old assessments to make room.", true);
+      else setMsg("Couldn't save. Check your connection and try again.", true);
+    } finally { saving = false; $("saveBtn").disabled = false; }
+  });
+
+  let armTimer = null;
+  function disarmDelete() { const b = $("delBtn"); b.classList.remove("armed"); b.textContent = "Delete"; clearTimeout(armTimer); }
+  $("delBtn").onclick = async () => {
+    const b = $("delBtn");
+    if (!b.classList.contains("armed")) { b.classList.add("armed"); b.textContent = "Confirm delete"; armTimer = setTimeout(disarmDelete, 4000); return; }
+    disarmDelete();
+    const id = state.selectedId; if (!id) return;
+    try {
+      if (state.local) { state.changes = state.changes.filter((x) => x.id !== id); renderList(); }
+      else await state.db.collection("changes").doc(id).delete();
+      startNew(); setMsg("Deleted");
+    } catch (err) { setMsg("Couldn't delete. Try again.", true); }
+  };
+
+  let settingsSaving = Promise.resolve();
+  function saveSettings() {
+    if (state.local || !state.writable) return;
+    const body = { purpose: state.purpose, horizon: state.horizon };
+    settingsSaving = settingsSaving.then(() => state.db.doc("settings/main").set(body)).catch((err) => {
+      if (err && err.code === "invalid_argument") setReadOnly();
+    });
+  }
+  $("horizon").onchange = () => { state.horizon = Number($("horizon").value); renderVerdict(); renderList(); saveSettings(); };
+  $("purpose").addEventListener("change", () => { state.purpose = $("purpose").value.trim(); updatePurposeHint(); saveSettings(); });
+  function updatePurposeHint() {
+    $("benefitHint").textContent = state.purpose
+      ? 'Our software helps people ' + state.purpose + '. How does this change help them do that? If it doesn\'t, drop it.'
+      : 'Answer in one sentence. If the honest answer is "it doesn\'t", drop the change.';
+  }
+
+  function goLocal(msg) {
+    state.local = true; state.loaded = true; banner(msg); renderList();
+  }
+
+  async function init() {
+    $("horizon").value = String(state.horizon);
+    fillForm(state.draft); renderVerdict(); renderList();
+    const claude = window.claude;
+    if (!claude || typeof claude.use !== "function") { goLocal("Not connected to shared storage. Assessments here are only kept until you close the page."); return; }
+    const [db, user] = await Promise.all([claude.use("db"), claude.use("user")]);
+    state.db = db; state.user = user;
+    if (!db) { goLocal("Shared storage isn't available in this view. Assessments here are only kept until you close the page."); return; }
+    if (user) {
+      state.myId = await user.id();
+      const can = await user.can("data.write");
+      if (can === false) setReadOnly();
+    }
+    let timer = setTimeout(() => { if (!state.loaded) { $("emptyTitle").textContent = "Can't reach the board yet"; $("emptyText").textContent = "Saved assessments haven't loaded. They'll appear as soon as the connection recovers."; } }, 10000);
+    db.collection("changes").onSnapshot((snap) => {
+      state.changes = snap.docs.map((d) => { const raw = d.data() || {}; return { id: d.id, data: normalize(raw), createdBy: raw.createdBy || null, createdAt: raw.createdAt || null }; });
+      if (!snap.metadata.fromCache) { state.loaded = true; clearTimeout(timer); }
+      else if (snap.size) state.loaded = true;
+      if (state.selectedId && !state.changes.some((c) => c.id === state.selectedId)) state.selectedId = null;
+      renderList();
+    }, (err) => {
+      clearTimeout(timer); state.loaded = true;
+      banner("The board stopped syncing. Reload the page to reconnect."); renderList();
+    });
+    db.doc("settings/main").onSnapshot((snap) => {
+      if (!snap.exists) return;
+      const d = snap.data() || {};
+      const h = Number(d.horizon); if ([1, 2, 4, 8, 20, 40].includes(h)) { state.horizon = h; $("horizon").value = String(h); }
+      if (typeof d.purpose === "string" && document.activeElement !== $("purpose")) { state.purpose = d.purpose; $("purpose").value = d.purpose; }
+      updatePurposeHint(); renderVerdict(); renderList();
+    }, () => {});
+  }
+  init();
+})();
+</script>
+</body>
+</html>
