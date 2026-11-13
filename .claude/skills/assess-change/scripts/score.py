@@ -58,7 +58,7 @@ def index_of(field, value):
             if label.lower() == value.strip().lower():
                 return i
         raise ValueError(f"{field}: unknown option {value!r}; choose from {opts}")
-    if isinstance(value, int) and 0 <= value < len(opts):
+    if isinstance(value, int) and not isinstance(value, bool) and 0 <= value < len(opts):
         return value
     raise ValueError(f"{field}: {value!r} is out of range 0-{len(opts) - 1}")
 
@@ -66,11 +66,17 @@ def index_of(field, value):
 def assess(raw):
     c = {k: index_of(k, raw.get(k, DEFAULTS[k])) for k in OPTS}
     benefit = str(raw.get("benefit", "")).strip()
-    checks = [x for x in raw.get("checks", []) if x in CHECKS]
-    unknown = [x for x in raw.get("checks", []) if x not in CHECKS]
+    raw_checks = raw.get("checks", [])
+    if not isinstance(raw_checks, list):
+        raise ValueError(f"checks must be a list of ids from {list(CHECKS)}")
+    checks = [x for x in raw_checks if x in CHECKS]
+    unknown = [x for x in raw_checks if x not in CHECKS]
     if unknown:
         raise ValueError(f"checks: unknown ids {unknown}; choose from {list(CHECKS)}")
-    T = int(raw.get("horizon", 8))
+    try:
+        T = int(raw.get("horizon", 8))
+    except (TypeError, ValueError):
+        T = None
     if T not in HORIZONS:
         raise ValueError(f"horizon must be one of {list(HORIZONS)} (quarters)")
 
@@ -114,10 +120,16 @@ def assess(raw):
 def main():
     if len(sys.argv) != 2:
         sys.exit(__doc__)
-    src = sys.stdin if sys.argv[1] == "-" else open(sys.argv[1], encoding="utf-8")
     try:
-        print(json.dumps(assess(json.load(src)), indent=2))
-    except ValueError as e:
+        if sys.argv[1] == "-":
+            raw = json.load(sys.stdin)
+        else:
+            with open(sys.argv[1], encoding="utf-8") as f:
+                raw = json.load(f)
+        if not isinstance(raw, dict):
+            raise ValueError("input must be a JSON object")
+        print(json.dumps(assess(raw), indent=2))
+    except (ValueError, OSError) as e:
         sys.exit(f"error: {e}")
 
 
